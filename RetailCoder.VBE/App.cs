@@ -59,7 +59,8 @@ namespace Rubberduck
 
         private void _hook_KeyPressed(object sender, KeyHookEventArgs e)
         {
-            _parser.Parse(e.Component);
+            // We'll add a CancellationToken soon.
+            _parser.Parse(e.Component, CancellationToken.None);
         }
 
         public void Startup()
@@ -69,7 +70,7 @@ namespace Rubberduck
             _appMenus.Initialize();
             _appMenus.Localize();
 
-            Task.Delay(1000).ContinueWith(t => _parser.Parse(_vbe));
+            Task.Delay(1000).ContinueWith(t => _parser.Parse(_vbe, CancellationToken.None));
         }
 
         private void CleanReloadConfig()

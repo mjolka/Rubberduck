@@ -111,7 +111,7 @@ namespace Rubberduck.Parsing.VBA
             return new ParseResult(tree, stream);
         }
 
-        public void Parse(VBE vbe)
+        public void Parse(VBE vbe, CancellationToken cancellationToken)
         {
             var components = vbe.VBProjects
                 .Cast<VBProject>()
@@ -120,13 +120,12 @@ namespace Rubberduck.Parsing.VBA
             _state.AddBuiltInDeclarations(_vbe.HostApplication());
             foreach (var vbComponent in components)
             {
-                Parse(vbComponent);
+                Parse(vbComponent, cancellationToken);
             }
         }
 
-        public void Parse(VBComponent vbComponent)
+        public void Parse(VBComponent vbComponent, CancellationToken cancellationToken)
         {
-            var token = CancelPreviousTask(vbComponent);
             _state.ClearDeclarations(vbComponent);
 
             var qualifiedName = new QualifiedModuleName(vbComponent);
@@ -147,7 +146,7 @@ namespace Rubberduck.Parsing.VBA
             // cannot locate declarations in one pass *the way it's currently implemented*,
             // because the context in EnterSubStmt() doesn't *yet* have child nodes when the context enters.
             // so we need to EnterAmbiguousIdentifier() and evaluate the parent instead - this *might* work.
-            var declarationsListener = new DeclarationSymbolsListener(qualifiedName, Accessibility.Implicit, vbComponent.Type, _state.Comments, token);
+            var declarationsListener = new DeclarationSymbolsListener(qualifiedName, Accessibility.Implicit, vbComponent.Type, _state.Comments, cancellationToken);
             
             declarationsListener.NewDeclaration += declarationsListener_NewDeclaration;
             declarationsListener.CreateModuleDeclarations();
@@ -160,35 +159,12 @@ namespace Rubberduck.Parsing.VBA
 
             _state.AddTokenStream(vbComponent, result.TokenStream);
 
-            ResolveReferences(result.ParseTree, token);
+            ResolveReferences(result.ParseTree, cancellationToken);
         }
 
         private void declarationsListener_NewDeclaration(object sender, DeclarationEventArgs e)
         {
              _state.AddDeclaration(e.Declaration);
-        }
-
-        private readonly ConcurrentDictionary<VBComponent, CancellationTokenSource> _cancellationTokens =
-            new ConcurrentDictionary<VBComponent, CancellationTokenSource>();
-
-        private CancellationToken CancelPreviousTask(VBComponent vbComponent)
-        {
-            CancellationTokenSource tokenSource;
-            if (_cancellationTokens.TryGetValue(vbComponent, out tokenSource))
-            {
-                try
-                {
-                    tokenSource.Cancel();
-                }
-                catch (TaskCanceledException)
-                {
-                    _state.Status = RubberduckParserState.State.Ready;
-                }
-            }
-            var cancelTokenSource = new CancellationTokenSource();
-            _cancellationTokens[vbComponent] = cancelTokenSource;
-
-            return cancelTokenSource.Token;
         }
 
         private void ResolveReferences(IParseTree tree, CancellationToken token)

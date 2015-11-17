@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Windows.Media.Imaging;
 using Microsoft.Vbe.Interop;
 using Rubberduck.Common;
@@ -40,7 +41,7 @@ namespace Rubberduck.UI.ParserProgress
 
         public void Start()
         {            
-            _parser.Parse(_project.VBE);
+            _parser.Parse(_project.VBE, CancellationToken.None);
         }
 
         public event EventHandler<EventArgs> Completed;
